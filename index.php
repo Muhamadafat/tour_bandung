@@ -155,8 +155,9 @@ $categories = $cat_stmt->fetchAll();
                     <?php foreach ($tours as $tour): ?>
                         <div class="col-md-4 mb-4">
                             <div class="card tour-card h-100">
-                                <img src="<?= $tour['image'] ? 'uploads/' . $tour['image'] : 'https://via.placeholder.com/300x200' ?>" 
-                                     class="card-img-top" alt="<?= htmlspecialchars($tour['title']) ?>" style="height: 200px; object-fit: cover;">
+                                <img src="<?= $tour['image'] ? 'uploads/' . $tour['image'] : 'https://via.placeholder.com/300x200?text=No+Image' ?>" 
+                                     class="card-img-top" alt="<?= htmlspecialchars($tour['title']) ?>" style="height: 200px; object-fit: cover;"
+                                     onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
                                 <div class="card-body d-flex flex-column">
                                     <h5 class="card-title"><?= htmlspecialchars($tour['title']) ?></h5>
                                     <p class="card-text text-muted small">

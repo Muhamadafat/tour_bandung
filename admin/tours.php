@@ -24,7 +24,7 @@ if ($_POST) {
         
         $image = '';
         if (isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
-            $image = upload_file($_FILES['image']);
+            $image = upload_file($_FILES['image'], '../uploads/');
         }
         
         $stmt = $pdo->prepare("INSERT INTO tours (title, description, price, duration, location, max_participants, category_id, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
@@ -46,7 +46,7 @@ if ($_POST) {
         // Handle image upload
         $image_update = '';
         if (isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
-            $new_image = upload_file($_FILES['image']);
+            $new_image = upload_file($_FILES['image'], '../uploads/');
             if ($new_image) {
                 $image_update = ', image = ?';
             }
@@ -147,6 +147,32 @@ $categories = $cat_stmt->fetchAll();
             object-fit: cover;
             border-radius: 5px;
         }
+        .image-preview {
+            border: 2px dashed #dee2e6;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            background-color: #f8f9fa;
+            transition: all 0.3s ease;
+        }
+        .image-preview:hover {
+            border-color: #007bff;
+            background-color: #e3f2fd;
+        }
+        .image-preview img {
+            border: 2px solid #dee2e6;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .preview-container {
+            position: relative;
+        }
+        .file-info {
+            background: #e3f2fd;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -239,8 +265,9 @@ $categories = $cat_stmt->fetchAll();
                                         <?php foreach ($tours as $tour): ?>
                                             <tr>
                                                 <td>
-                                                    <img src="<?= $tour['image'] ? '../uploads/' . $tour['image'] : 'https://via.placeholder.com/80x60' ?>" 
-                                                         class="tour-img" alt="<?= htmlspecialchars($tour['title']) ?>">
+                                                    <img src="<?= $tour['image'] ? '../uploads/' . $tour['image'] : 'https://via.placeholder.com/80x60?text=No+Image' ?>" 
+                                                         class="tour-img" alt="<?= htmlspecialchars($tour['title']) ?>"
+                                                         onerror="this.src='https://via.placeholder.com/80x60?text=No+Image'">
                                                 </td>
                                                 <td><?= htmlspecialchars($tour['title']) ?></td>
                                                 <td><?= htmlspecialchars($tour['location']) ?></td>
@@ -346,7 +373,16 @@ $categories = $cat_stmt->fetchAll();
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">Gambar</label>
-                                    <input type="file" name="image" class="form-control" accept="image/*">
+                                    <input type="file" name="image" class="form-control" accept="image/*" onchange="previewImage(this, 'add-preview')">
+                                    <div id="add-preview" class="preview-container mt-2" style="display: none;">
+                                        <div class="image-preview">
+                                            <img id="add-preview-img" src="" alt="Preview" style="max-width: 200px; max-height: 150px; object-fit: cover; border-radius: 5px;">
+                                            <div class="file-info">
+                                                <i class="fas fa-image text-primary"></i>
+                                                <span class="text-muted small">Preview gambar yang akan diupload</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -425,7 +461,16 @@ $categories = $cat_stmt->fetchAll();
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">Gambar (Kosongkan jika tidak ingin mengganti)</label>
-                                    <input type="file" name="image" class="form-control" accept="image/*">
+                                    <input type="file" name="image" class="form-control" accept="image/*" onchange="previewImage(this, 'edit-preview')">
+                                    <div id="edit-preview" class="preview-container mt-2">
+                                        <div class="image-preview">
+                                            <img id="edit-preview-img" src="" alt="Current Image" style="max-width: 200px; max-height: 150px; object-fit: cover; border-radius: 5px; display: none;">
+                                            <div class="file-info" id="edit-preview-text" style="display: none;">
+                                                <i class="fas fa-image text-success"></i>
+                                                <span class="text-muted small">Gambar saat ini</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -447,6 +492,72 @@ $categories = $cat_stmt->fetchAll();
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Function to preview image before upload
+        function previewImage(input, previewId) {
+            const preview = document.getElementById(previewId);
+            const previewImg = document.getElementById(previewId + '-img');
+            const previewText = document.getElementById(previewId + '-text');
+            
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const reader = new FileReader();
+                
+                // Validate file type
+                if (!file.type.match('image.*')) {
+                    alert('Please select a valid image file!');
+                    input.value = '';
+                    return;
+                }
+                
+                // Validate file size (5MB max)
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('File size too large! Maximum 5MB allowed.');
+                    input.value = '';
+                    return;
+                }
+                
+                reader.onload = function(e) {
+                    previewImg.src = e.target.result;
+                    previewImg.style.display = 'block';
+                    preview.style.display = 'block';
+                    
+                    if (previewText) {
+                        const fileSize = (file.size / 1024).toFixed(1);
+                        const sizeUnit = fileSize > 1024 ? (fileSize / 1024).toFixed(1) + ' MB' : fileSize + ' KB';
+                        
+                        if (previewId === 'add-preview') {
+                            previewText.innerHTML = `
+                                <i class="fas fa-image text-primary"></i>
+                                <span class="text-muted small">
+                                    ${file.name} (${sizeUnit})
+                                    <br>Preview gambar yang akan diupload
+                                </span>
+                            `;
+                        } else {
+                            previewText.innerHTML = `
+                                <i class="fas fa-sync text-warning"></i>
+                                <span class="text-muted small">
+                                    ${file.name} (${sizeUnit})
+                                    <br>Gambar baru yang akan mengganti gambar lama
+                                </span>
+                            `;
+                        }
+                        previewText.style.display = 'block';
+                    }
+                }
+                
+                reader.readAsDataURL(file);
+            } else {
+                if (previewId === 'add-preview') {
+                    preview.style.display = 'none';
+                    previewImg.style.display = 'none';
+                    if (previewText) {
+                        previewText.style.display = 'none';
+                    }
+                }
+            }
+        }
+        
         function editTour(tour) {
             document.getElementById('edit_id').value = tour.id;
             document.getElementById('edit_title').value = tour.title;
@@ -456,6 +567,29 @@ $categories = $cat_stmt->fetchAll();
             document.getElementById('edit_location').value = tour.location;
             document.getElementById('edit_max_participants').value = tour.max_participants;
             document.getElementById('edit_category_id').value = tour.category_id;
+            
+            // Show current image if exists
+            const editPreview = document.getElementById('edit-preview');
+            const editPreviewImg = document.getElementById('edit-preview-img');
+            const editPreviewText = document.getElementById('edit-preview-text');
+            
+            if (tour.image) {
+                editPreviewImg.src = '../uploads/' + tour.image;
+                editPreviewImg.style.display = 'block';
+                editPreview.style.display = 'block';
+                editPreviewText.innerHTML = `
+                    <i class="fas fa-image text-success"></i>
+                    <span class="text-muted small">
+                        Gambar saat ini: ${tour.image}
+                        <br>Pilih file baru untuk mengganti
+                    </span>
+                `;
+                editPreviewText.style.display = 'block';
+            } else {
+                editPreview.style.display = 'none';
+                editPreviewImg.style.display = 'none';
+                editPreviewText.style.display = 'none';
+            }
             
             var editModal = new bootstrap.Modal(document.getElementById('editTourModal'));
             editModal.show();
@@ -467,6 +601,18 @@ $categories = $cat_stmt->fetchAll();
                 document.getElementById('deleteForm').submit();
             }
         }
+        
+        // Reset preview when modal is closed
+        document.getElementById('addTourModal').addEventListener('hidden.bs.modal', function() {
+            document.getElementById('add-preview').style.display = 'none';
+            document.getElementById('add-preview-img').style.display = 'none';
+        });
+        
+        document.getElementById('editTourModal').addEventListener('hidden.bs.modal', function() {
+            // Reset file input
+            const fileInput = document.querySelector('#editTourModal input[type="file"]');
+            fileInput.value = '';
+        });
     </script>
 </body>
 </html>

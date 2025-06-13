@@ -25,6 +25,11 @@ function format_rupiah($angka) {
 
 // Fungsi untuk upload file
 function upload_file($file, $target_dir = 'uploads/') {
+    // Pastikan target directory ada
+    if (!file_exists($target_dir)) {
+        mkdir($target_dir, 0755, true);
+    }
+    
     $target_file = $target_dir . basename($file["name"]);
     $uploadOk = 1;
     $imageFileType = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
@@ -46,7 +51,7 @@ function upload_file($file, $target_dir = 'uploads/') {
     }
     
     // Buat nama file unik
-    $new_filename = uniqid() . '.' . $imageFileType;
+    $new_filename = uniqid() . '_' . time() . '.' . $imageFileType;
     $target_file = $target_dir . $new_filename;
     
     if (move_uploaded_file($file["tmp_name"], $target_file)) {

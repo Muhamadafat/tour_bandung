@@ -27,12 +27,12 @@ $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'user'");
 $stats['total_users'] = $stmt->fetchColumn();
 
 // Recent bookings
-$stmt = $pdo->query("SELECT b.*, t.title as tour_title, u.full_name as user_name 
+$stmt = $pdo->query("SELECT b.*, t.title as tour_title, u.full_name as user_name, u.email as user_email
                      FROM bookings b 
                      JOIN tours t ON b.tour_id = t.id 
                      JOIN users u ON b.user_id = u.id 
                      ORDER BY b.created_at DESC 
-                     LIMIT 5");
+                     LIMIT 10");
 $recent_bookings = $stmt->fetchAll();
 
 // Popular tours
@@ -123,7 +123,19 @@ $popular_tours = $stmt->fetchAll();
                 <!-- Header -->
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2>Dashboard</h2>
-                    <span class="text-muted">Selamat datang, <?= htmlspecialchars($_SESSION['admin_name']) ?></span>
+                    <div class="text-end">
+                        <span class="text-muted">Selamat datang, <?= htmlspecialchars($_SESSION['admin_name']) ?></span>
+                        <?php 
+                        // Cek booking baru (1 jam terakhir)
+                        $new_bookings = $pdo->query("SELECT COUNT(*) FROM bookings WHERE created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)")->fetchColumn();
+                        if ($new_bookings > 0):
+                        ?>
+                        <br>
+                        <span class="badge bg-warning">
+                            <i class="fas fa-bell"></i> <?= $new_bookings ?> booking baru!
+                        </span>
+                        <?php endif; ?>
+                    </div>
                 </div>
 
                 <!-- Statistics Cards -->
