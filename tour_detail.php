@@ -19,6 +19,13 @@ if ($_POST && isset($_POST['action']) && $_POST['action'] == 'book_tour') {
     $participants = (int)$_POST['participants'];
     
     if (!empty($full_name) && !empty($email) && !empty($booking_date) && $participants > 0) {
+        // Cek apakah user sudah login
+        if (!isset($_SESSION['user_id'])) {
+            $message = '<div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i> 
+                Silakan login terlebih dahulu untuk melakukan pemesanan.
+            </div>';
+        } else {
         // Ambil data tour untuk hitung total harga
         $tour_stmt = $pdo->prepare("SELECT price FROM tours WHERE id = ?");
         $tour_stmt->execute([$id]);
@@ -26,24 +33,9 @@ if ($_POST && isset($_POST['action']) && $_POST['action'] == 'book_tour') {
         
         if ($tour_data) {
             $total_price = $tour_data['price'] * $participants;
+            $user_id = $_SESSION['user_id'];
             
-            // Cek apakah user sudah ada berdasarkan email
-            $user_stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
-            $user_stmt->execute([$email]);
-            $existing_user = $user_stmt->fetch();
-            
-            if ($existing_user) {
-                $user_id = $existing_user['id'];
-            } else {
-                // Buat user baru
-                $password_hash = password_hash('password123', PASSWORD_DEFAULT);
-                $insert_user = $pdo->prepare("INSERT INTO users (username, email, password, full_name, role) VALUES (?, ?, ?, ?, 'user')");
-                $username = strtolower(str_replace(' ', '', $full_name)) . rand(100, 999);
-                $insert_user->execute([$username, $email, $password_hash, $full_name]);
-                $user_id = $pdo->lastInsertId();
-            }
-            
-            // Insert booking
+            // Insert booking langsung dengan user yang sudah login
             $booking_stmt = $pdo->prepare("INSERT INTO bookings (user_id, tour_id, booking_date, participants, total_price, status) VALUES (?, ?, ?, ?, ?, 'pending')");
             
             if ($booking_stmt->execute([$user_id, $id, $booking_date, $participants, $total_price])) {
@@ -62,6 +54,7 @@ if ($_POST && isset($_POST['action']) && $_POST['action'] == 'book_tour') {
                     Terjadi kesalahan saat memproses pemesanan. Silakan coba lagi.
                 </div>';
             }
+        }
         }
     } else {
         $message = '<div class="alert alert-warning">
@@ -201,14 +194,29 @@ $related_tours = $related_stmt->fetchAll();
                         <div class="text-center">
                             <i class="fas fa-check-circle text-success fa-3x mb-3"></i>
                             <p class="text-success"><strong>Pemesanan Berhasil!</strong></p>
+                            <a href="my_bookings.php" class="btn btn-success mb-2">
+                                <i class="fas fa-calendar-check"></i> Lihat My Bookings
+                            </a>
+                            <br>
                             <a href="index.php" class="btn btn-outline-primary">
                                 <i class="fas fa-arrow-left"></i> Kembali ke Beranda
                             </a>
                         </div>
                     <?php else: ?>
-                        <button class="btn btn-primary btn-lg w-100 mb-2" data-bs-toggle="modal" data-bs-target="#bookingModal">
-                            <i class="fas fa-calendar-check"></i> Pesan Sekarang
-                        </button>
+                        <?php if (isset($_SESSION['user_id'])): ?>
+                            <button class="btn btn-primary btn-lg w-100 mb-2" data-bs-toggle="modal" data-bs-target="#bookingModal">
+                                <i class="fas fa-calendar-check"></i> Pesan Sekarang
+                            </button>
+                        <?php else: ?>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>Login Required</strong><br>
+                                Silakan login terlebih dahulu untuk melakukan pemesanan
+                            </div>
+                            <a href="index.php" class="btn btn-primary btn-lg w-100 mb-2">
+                                <i class="fas fa-sign-in-alt"></i> Login untuk Pesan
+                            </a>
+                        <?php endif; ?>
                     <?php endif; ?>
                     
                     <a href="index.php" class="btn btn-outline-secondary w-100">
@@ -269,15 +277,17 @@ $related_tours = $related_stmt->fetchAll();
                     <div class="modal-body">
                         <input type="hidden" name="action" value="book_tour">
                         
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Nama Lengkap *</label>
-                                <input type="text" name="full_name" class="form-control" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Email *</label>
-                                <input type="email" name="email" class="form-control" required>
-                            </div>
+                        <div class="mb-3">
+                            <label class="form-label">Nama Lengkap *</label>
+                            <input type="text" name="full_name" class="form-control" 
+                                   value="<?= isset($_SESSION['user_name']) ? htmlspecialchars($_SESSION['user_name']) : '' ?>" 
+                                   <?= isset($_SESSION['user_name']) ? 'readonly' : '' ?> required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email *</label>
+                            <input type="email" name="email" class="form-control" 
+                                   value="<?= isset($_SESSION['user_email']) ? htmlspecialchars($_SESSION['user_email']) : '' ?>" 
+                                   <?= isset($_SESSION['user_email']) ? 'readonly' : '' ?> required>
                         </div>
                         
                         <div class="row mb-3">

@@ -1,6 +1,75 @@
 <?php
 require_once 'config/database.php';
 
+$auth_message = '';
+
+// Handle Login
+if ($_POST && isset($_POST['action']) && $_POST['action'] == 'login') {
+    $email = clean_input($_POST['email']);
+    $password = $_POST['password'];
+    
+    if (!empty($email) && !empty($password)) {
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ? AND role = 'user'");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch();
+        
+        if ($user && password_verify($password, $user['password'])) {
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['user_name'] = $user['full_name'];
+            $_SESSION['user_email'] = $user['email'];
+            header('Location: index.php');
+            exit;
+        } else {
+            $auth_message = '<div class="alert alert-danger">Email atau password salah!</div>';
+        }
+    } else {
+        $auth_message = '<div class="alert alert-warning">Mohon lengkapi email dan password!</div>';
+    }
+}
+
+// Handle Register
+if ($_POST && isset($_POST['action']) && $_POST['action'] == 'register') {
+    $full_name = clean_input($_POST['full_name']);
+    $email = clean_input($_POST['email']);
+    $password = $_POST['password'];
+    $confirm_password = $_POST['confirm_password'];
+    
+    if (!empty($full_name) && !empty($email) && !empty($password)) {
+        if ($password === $confirm_password) {
+            // Cek email sudah ada atau belum
+            $check_stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
+            $check_stmt->execute([$email]);
+            
+            if ($check_stmt->fetch()) {
+                $auth_message = '<div class="alert alert-warning">Email sudah terdaftar!</div>';
+            } else {
+                // Register user baru
+                $password_hash = password_hash($password, PASSWORD_DEFAULT);
+                $username = strtolower(str_replace(' ', '_', $full_name)) . rand(100, 999);
+                
+                $insert_stmt = $pdo->prepare("INSERT INTO users (username, email, password, full_name, role) VALUES (?, ?, ?, ?, 'user')");
+                
+                if ($insert_stmt->execute([$username, $email, $password_hash, $full_name])) {
+                    $user_id = $pdo->lastInsertId();
+                    $_SESSION['user_id'] = $user_id;
+                    $_SESSION['user_name'] = $full_name;
+                    $_SESSION['user_email'] = $email;
+                    
+                    $auth_message = '<div class="alert alert-success">Registrasi berhasil! Selamat datang!</div>';
+                    header('Location: index.php');
+                    exit;
+                } else {
+                    $auth_message = '<div class="alert alert-danger">Terjadi kesalahan saat registrasi!</div>';
+                }
+            }
+        } else {
+            $auth_message = '<div class="alert alert-warning">Password konfirmasi tidak cocok!</div>';
+        }
+    } else {
+        $auth_message = '<div class="alert alert-warning">Mohon lengkapi semua field!</div>';
+    }
+}
+
 // Pagination
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $per_page = 6;
@@ -92,8 +161,31 @@ $categories = $cat_stmt->fetchAll();
                 <i class="fas fa-mountain"></i> Tour Bandung
             </a>
             <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="index.php">Home</a>
-                <a class="nav-link" href="admin/login.php">Admin</a>
+                <a class="nav-link" href="index.php">
+                    <i class="fas fa-home"></i> Home
+                </a>
+                <?php if (isset($_SESSION['user_id'])): ?>
+                    <div class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user"></i> <?= htmlspecialchars($_SESSION['user_name']) ?>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="my_bookings.php"><i class="fas fa-calendar-check"></i> My Bookings</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                        </ul>
+                    </div>
+                <?php else: ?>
+                    <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#loginModal">
+                        <i class="fas fa-sign-in-alt"></i> Login
+                    </a>
+                    <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#registerModal">
+                        <i class="fas fa-user-plus"></i> Register
+                    </a>
+                <?php endif; ?>
+                <a class="nav-link" href="admin/login.php">
+                    <i class="fas fa-user-shield"></i> Admin
+                </a>
             </div>
         </div>
     </nav>
@@ -211,6 +303,122 @@ $categories = $cat_stmt->fetchAll();
             <?php endif; ?>
         </div>
     </section>
+
+    <!-- Auth Message -->
+    <?php if (!empty($auth_message)): ?>
+        <div class="container">
+            <?= $auth_message ?>
+        </div>
+    <?php endif; ?>
+
+    <!-- Login Modal -->
+    <div class="modal fade" id="loginModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-sign-in-alt text-primary"></i> Login User
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST">
+                    <div class="modal-body">
+                        <input type="hidden" name="action" value="login">
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                <input type="email" name="email" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Password</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                <input type="password" name="password" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <small class="text-muted">
+                                Belum punya akun? 
+                                <a href="#" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#registerModal">
+                                    Daftar di sini
+                                </a>
+                            </small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-sign-in-alt"></i> Login
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Register Modal -->
+    <div class="modal fade" id="registerModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-user-plus text-success"></i> Register User
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST">
+                    <div class="modal-body">
+                        <input type="hidden" name="action" value="register">
+                        <div class="mb-3">
+                            <label class="form-label">Nama Lengkap</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                <input type="text" name="full_name" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                <input type="email" name="email" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Password</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                <input type="password" name="password" class="form-control" minlength="6" required>
+                            </div>
+                            <small class="text-muted">Minimal 6 karakter</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Konfirmasi Password</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                <input type="password" name="confirm_password" class="form-control" minlength="6" required>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <small class="text-muted">
+                                Sudah punya akun? 
+                                <a href="#" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#loginModal">
+                                    Login di sini
+                                </a>
+                            </small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-user-plus"></i> Daftar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <!-- Footer -->
     <footer class="bg-dark text-white py-4">
