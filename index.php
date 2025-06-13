@@ -164,7 +164,7 @@ $categories = $cat_stmt->fetchAll();
                 <a class="nav-link" href="index.php">
                     <i class="fas fa-home"></i> Home
                 </a>
-                <?php if (isset($_SESSION['user_id'])): ?>
+                <?php if (isset($_SESSION['user_id']) && isset($_SESSION['user_name'])): ?>
                     <div class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-user"></i> <?= htmlspecialchars($_SESSION['user_name']) ?>
@@ -328,7 +328,8 @@ $categories = $cat_stmt->fetchAll();
                             <label class="form-label">Email</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-envelope"></i></span>
-                                <input type="email" name="email" class="form-control" required>
+                                <input type="email" name="email" class="form-control" 
+                                       value="<?= isset($_POST['email']) ? htmlspecialchars($_POST['email']) : '' ?>" required>
                             </div>
                         </div>
                         <div class="mb-3">
@@ -375,14 +376,16 @@ $categories = $cat_stmt->fetchAll();
                             <label class="form-label">Nama Lengkap</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-user"></i></span>
-                                <input type="text" name="full_name" class="form-control" required>
+                                <input type="text" name="full_name" class="form-control" 
+                                       value="<?= isset($_POST['full_name']) ? htmlspecialchars($_POST['full_name']) : '' ?>" required>
                             </div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Email</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-envelope"></i></span>
-                                <input type="email" name="email" class="form-control" required>
+                                <input type="email" name="email" class="form-control" 
+                                       value="<?= isset($_POST['email']) && $_POST['action'] == 'register' ? htmlspecialchars($_POST['email']) : '' ?>" required>
                             </div>
                         </div>
                         <div class="mb-3">
@@ -428,5 +431,37 @@ $categories = $cat_stmt->fetchAll();
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Auto show modal if there's an auth error
+        <?php if (!empty($auth_message) && $_POST): ?>
+            <?php if (isset($_POST['action']) && $_POST['action'] == 'login'): ?>
+                document.addEventListener('DOMContentLoaded', function() {
+                    var loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
+                    loginModal.show();
+                });
+            <?php elseif (isset($_POST['action']) && $_POST['action'] == 'register'): ?>
+                document.addEventListener('DOMContentLoaded', function() {
+                    var registerModal = new bootstrap.Modal(document.getElementById('registerModal'));
+                    registerModal.show();
+                });
+            <?php endif; ?>
+        <?php endif; ?>
+        
+        // Auto hide auth message after 5 seconds
+        <?php if (!empty($auth_message)): ?>
+            setTimeout(function() {
+                var alertDiv = document.querySelector('.alert');
+                if (alertDiv) {
+                    alertDiv.style.transition = 'opacity 0.5s';
+                    alertDiv.style.opacity = '0';
+                    setTimeout(function() {
+                        if (alertDiv.parentNode) {
+                            alertDiv.parentNode.removeChild(alertDiv);
+                        }
+                    }, 500);
+                }
+            }, 5000);
+        <?php endif; ?>
+    </script>
 </body>
 </html>

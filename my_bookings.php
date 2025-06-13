@@ -59,7 +59,7 @@ $bookings = $stmt->fetchAll();
                 </a>
                 <div class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
-                        <i class="fas fa-user"></i> <?= htmlspecialchars($_SESSION['user_name']) ?>
+                        <i class="fas fa-user"></i> <?= isset($_SESSION['user_name']) ? htmlspecialchars($_SESSION['user_name']) : 'User' ?>
                     </a>
                     <ul class="dropdown-menu">
                         <li><a class="dropdown-item" href="my_bookings.php"><i class="fas fa-calendar-check"></i> My Bookings</a></li>
