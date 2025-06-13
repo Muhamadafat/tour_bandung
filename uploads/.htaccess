@@ -1,0 +1,11 @@
+# Proteksi folder uploads
+Options -Indexes
+# Hanya allow gambar
+<Files ~ "\.(jpg|jpeg|png|gif)$">
+    Order allow,deny
+    Allow from all
+</Files>
+<Files ~ "\.php$">
+    Order allow,deny
+    Deny from all
+</Files>
